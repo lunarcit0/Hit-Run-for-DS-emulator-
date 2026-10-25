@@ -1,0 +1,40 @@
+name: Deploy game
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - id: pages
+        uses: actions/configure-pages@v5
+      # Build for this repo's own Pages path (e.g. /Hit-Run-for-DS-emulator-/) instead of a hard-coded one.
+      - run: npm run build -- --base="${{ steps.pages.outputs.base_path }}/"
+      - run: node tools/prepare_site.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
